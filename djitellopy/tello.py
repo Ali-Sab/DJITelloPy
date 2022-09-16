@@ -92,7 +92,8 @@ class Tello:
 
     def __init__(self,
                  host=TELLO_IP,
-                 retry_count=RETRY_COUNT):
+                 retry_count=RETRY_COUNT,
+                 skipAddressCheck=False):
 
         global threads_initialized, client_socket, drones
 
@@ -101,17 +102,16 @@ class Tello:
         self.retry_count = retry_count
         self.last_received_command_timestamp = time.time()
         self.last_rc_control_timestamp = time.time()
-
         if not threads_initialized:
             # Run Tello command responses UDP receiver on background
             client_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
             client_socket.bind(('', Tello.CONTROL_UDP_PORT))
-            response_receiver_thread = Thread(target=Tello.udp_response_receiver)
+            response_receiver_thread = Thread(target=Tello.udp_response_receiver, args=(skipAddressCheck, host,))
             response_receiver_thread.daemon = True
             response_receiver_thread.start()
 
             # Run state UDP receiver on background
-            state_receiver_thread = Thread(target=Tello.udp_state_receiver)
+            state_receiver_thread = Thread(target=Tello.udp_state_receiver, args=(skipAddressCheck, host,))
             state_receiver_thread.daemon = True
             state_receiver_thread.start()
 
@@ -132,7 +132,7 @@ class Tello:
         return drones[host]
 
     @staticmethod
-    def udp_response_receiver():
+    def udp_response_receiver(skipAddressCheck, hostAddress):
         """Setup drone UDP receiver. This method listens for responses of Tello.
         Must be run from a background thread in order to not block the main thread.
         Internal method, you normally wouldn't call this yourself.
@@ -142,6 +142,9 @@ class Tello:
                 data, address = client_socket.recvfrom(1024)
 
                 address = address[0]
+                if skipAddressCheck is True:
+                    address = hostAddress
+
                 Tello.LOGGER.debug('Data received from {} at client_socket'.format(address))
 
                 if address not in drones:
@@ -154,7 +157,7 @@ class Tello:
                 break
 
     @staticmethod
-    def udp_state_receiver():
+    def udp_state_receiver(skipAddressCheck, hostAddress):
         """Setup state UDP receiver. This method listens for state information from
         Tello. Must be run from a background thread in order to not block
         the main thread.
@@ -168,6 +171,9 @@ class Tello:
                 data, address = state_socket.recvfrom(1024)
 
                 address = address[0]
+                if skipAddressCheck is True:
+                    address = hostAddress
+
                 Tello.LOGGER.debug('Data received from {} at state_socket'.format(address))
 
                 if address not in drones:
