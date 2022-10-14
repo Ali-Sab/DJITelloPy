@@ -1005,10 +1005,10 @@ class Tello:
         """
         return self.send_read_command('active?')
 
-    def end(self):
+    def end(self, hover=False):
         """Call this method when you want to end the tello object
         """
-        if self.is_flying:
+        if self.is_flying and hover is False:
             self.land()
         if self.stream_on:
             self.streamoff()
@@ -1022,7 +1022,7 @@ class Tello:
             del drones[host]
 
     def __del__(self):
-        self.end()
+        self.end(hover=True)
 
 
 class BackgroundFrameRead:
